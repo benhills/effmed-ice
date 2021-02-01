@@ -80,8 +80,9 @@ class effective_medium():
         self.T = np.array([[Tx, 0],
                            [0, Ty]])
 
-    def solve(self,z,dz,thetas,epsxs,epsys,D=None):
+    def single_depth_solve(self,z,dz,thetas,epsxs,epsys,D=None):
         """
+        Solve at a single depth for all 4 polarizations
         """
 
         # Number of layers
@@ -124,3 +125,19 @@ class effective_medium():
             # Add the free space propagation term if desired
             self.attenuation(z)
             self.S = self.D**2.*matmul(matmul(Prop_down,Reflection),Prop_up)
+
+
+    def solve(self,zs,dz,thetas,epsxs,epsys,D=None):
+        """
+        Solve for a full column return of all 4 polarizations
+        """
+        self.shh = np.empty(len(zs)).astype(complex)
+        self.svv = np.empty(len(zs)).astype(complex)
+        self.shv = np.empty(len(zs)).astype(complex)
+        self.svh = np.empty(len(zs)).astype(complex)
+        for i,z in enumerate(zs):
+            self.single_depth_solve(z,dz,thetas,epsxs,epsys,D=D)
+            self.shh[i] = self.S[0,0]
+            self.shv[i] = self.S[0,1]
+            self.svh[i] = self.S[1,0]
+            self.svv[i] = self.S[1,1]
