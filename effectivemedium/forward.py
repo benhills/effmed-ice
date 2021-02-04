@@ -131,6 +131,7 @@ class effective_medium():
         """
         Solve for a full column return of all 4 polarizations
         """
+        self.range = zs
         self.shh = np.empty(len(zs)).astype(complex)
         self.svv = np.empty(len(zs)).astype(complex)
         self.shv = np.empty(len(zs)).astype(complex)
