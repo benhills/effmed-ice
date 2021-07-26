@@ -80,7 +80,7 @@ class effective_medium():
         self.T = np.array([[Tx, 0],
                            [0, Ty]])
 
-    def single_depth_solve(self,z,dz,thetas,epsxs,epsys,D=None):
+    def single_depth_solve(self,z,dz,thetas,epsxs,epsys,gammax=1.,gammay=1.,D=None):
         """
         Solve at a single depth for all 4 polarizations
         """
@@ -116,6 +116,7 @@ class effective_medium():
             Prop_up = matmul(Prop_up,matmul(matmul(self.R,self.T),np.transpose(self.R)))
 
         # Set the reflection matrix based on the angle, theta
+        self.reflection(gammax,gammay)
         Reflection = matmul(matmul(self.R,self.G),np.transpose(self.R))
 
         # Return scattering matrix
