@@ -128,17 +128,20 @@ class effective_medium():
             self.S = self.D**2.*matmul(matmul(Prop_down,Reflection),Prop_up)
 
 
-    def solve(self,zs,dz,thetas,epsxs,epsys,D=None):
+    def solve(self,zs,dz,thetas,epsxs,epsys,gammaxs=None,gammays=None,D=None):
         """
         Solve for a full column return of all 4 polarizations
         """
         self.range = zs
+        if gammaxs is None and gammays is None:
+            gammaxs = np.ones_like(zs)
+            gammays = np.ones_like(zs)
         self.shh = np.empty(len(zs)).astype(complex)
         self.svv = np.empty(len(zs)).astype(complex)
         self.shv = np.empty(len(zs)).astype(complex)
         self.svh = np.empty(len(zs)).astype(complex)
         for i,z in enumerate(zs):
-            self.single_depth_solve(z,dz,thetas,epsxs,epsys,D=D)
+            self.single_depth_solve(z,dz,thetas,epsxs,epsys,gammaxs[i],gammays[i],D=D)
             self.shh[i] = self.S[0,0]
             self.shv[i] = self.S[0,1]
             self.svh[i] = self.S[1,0]
