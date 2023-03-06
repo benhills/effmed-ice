@@ -58,7 +58,7 @@ class effective_medium():
         elif antenna_sep is not None:
             if H is None:
                 raise ValueError('If using antenna_sep must also give ice thickness, H.')
-            self.theta_w = np.arccos(H/antenna_sep)
+            self.theta_w = np.arctan(antenna_sep/H)
         else:
             self.theta_w = theta_w
 
@@ -71,14 +71,14 @@ class effective_medium():
 
         Parameters
         ----------
-        idctx:     str,    qualitative fabric 'type' for indicatrix selection
-        T:              float,  ice temperature
-        epsr:           float,  relative permittivity
-        epsc:           float,  complex relative permittivity
-        theta:          float,  polar angle of vertical eigenvector (chi[2])
-        psi:            float,  azimuthal angle of vertical eigenvalue (chi[2])
-        chi:            array,  c-axes distribution (eigenvalues)
-        prop_up:        bool,   propagate up? changes the indicatrix output
+        idctx:      str,    qualitative fabric 'type' for indicatrix selection
+        T:          float,  ice temperature
+        epsr:       float,  relative permittivity
+        epsc:       float,  complex relative permittivity
+        theta:      float,  polar angle of vertical eigenvector (chi[2])
+        psi:        float,  azimuthal angle of vertical eigenvalue (chi[2])
+        chi:        array,  c-axes distribution (eigenvalues)
+        prop_up:    bool,   propagate up? changes the indicatrix output
         """
 
         # Save input variables to the model class
@@ -124,7 +124,7 @@ class effective_medium():
 
         Parameters
         ----------
-        theta:      float,  angle
+        psi:    float,  angle
         """
 
         self.R = np.array([[np.cos(psi), -np.sin(psi)],
@@ -154,12 +154,10 @@ class effective_medium():
         Parameters
         ----------
         dz:      float,  layer thickness (m)
-        #TODO from matsuoka model??
-        #l = d/np.cos(theta_w)
         """
 
         # Propagation distance
-        dl = dz*np.cos(self.theta_w)
+        dl = dz/np.cos(self.theta_w)
 
         # Transmission components (Fujita et al., 2006; eq 6)
         T_1 = np.exp(-1j*self.k0*dl+1j*self.k_1*dl)
@@ -171,19 +169,20 @@ class effective_medium():
 
 
     def single_depth_solve(self,z,dzs,thetas,psis,chis,gamma=[1., 1.],
-                           idctx='none', D=None, verbose=False):
+                           idctx='none', D=None):
         """
         Solve at a single depth for all 4 polarizations
 
         Parameters
         ----------
-        z:     float,  reflectivity in x-dir
-        dzs:     float,  reflectivity in x-dir
+        z:          float,  reflectivity in x-dir
+        dzs:        float,  reflectivity in x-dir
         thetas:     float,  reflectivity in x-dir
-        psis:     float,  reflectivity in x-dir
-        chis:     float,  reflectivity in x-dir
-        gamma:     float,  reflectivity in x-dir
-        D:     float,  reflectivity in x-dir
+        psis:       float,  reflectivity in x-dir
+        chis:       float,  reflectivity in x-dir
+        gamma:      float,  reflectivity in x-dir
+        idctx:      str,
+        D:          float,  reflectivity in x-dir
         """
 
         # If the ice properties are constant fill in placeholder arrays
@@ -259,22 +258,27 @@ class effective_medium():
         ----------
         gammas:     float,  reflectivity in x-dir
         gammay:     float,  reflectivity in y-dir
-
         """
 
+        #
         self.range = zs
         self.shh = np.empty(len(zs)).astype(complex)
         self.svv = np.empty(len(zs)).astype(complex)
         self.shv = np.empty(len(zs)).astype(complex)
         self.svh = np.empty(len(zs)).astype(complex)
         for i, z in enumerate(zs):
+            #
             if gammas is None:
                 gamma = [1., 1.]
             elif np.shape(gammas) == (2,):
                 gamma = gammas
             else:
                 gamma = gammas[i]
+
+            #
             self.single_depth_solve(z, dzs, thetas, psis, chis, gamma, idctx=idctx, D=D)
+
+            #
             self.shh[i] = self.S[0, 0]
             self.shv[i] = self.S[0, 1]
             self.svh[i] = self.S[1, 0]

@@ -13,16 +13,6 @@ Indicatrices for single pole and vertical girdle fabrics based on Matsuoka et al
 """
 
 
-#em.theta = theta
-#em.psi = psi
-
-#em.theta_ = theta
-#psi_w = em.psi_w - psi  # TODO: directionality on this?
-
-
-
-
-
 def get_prop_const(em, indicatrix, theta, psi, prop_up):
     """
 
