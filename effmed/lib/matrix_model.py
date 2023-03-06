@@ -188,14 +188,10 @@ class effective_medium():
 
         # If the ice properties are constant fill in placeholder arrays
         if type(thetas) is float and type(psis) is float and np.shape(chis) == (3,):
-            dzs = np.array([dzs])
-            psis = np.array([psis])
-            thetas = np.array([thetas])
-            chis = np.array([chis])
-            self.ice_properties(idctx=idctx, theta=thetas[0], psi=psis[0], chi=chis[0])
-            uniform = True
-        else:
-            uniform = False
+            dzs = np.array([dzs, dzs])
+            psis = np.array([psis, psis])
+            thetas = np.array([thetas, thetas])
+            chis = np.array([chis, chis])
 
         # Initiate propagation arrays as identity
         Prop_down = np.eye(2).astype(complex)
@@ -204,87 +200,49 @@ class effective_medium():
         # Propagate downward, updating scattering matrix through each layer
         layer_n, z_prop = 0, 0
         while (z_prop+dzs[-1]) < z:
-            if uniform:
-                pass
-            else:
-                self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
+            self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
             self.rotation(self.psi_)
             self.transmission(dzs[layer_n])
             # Update the electrical field downward propagation to the scattering interface
             Prop_down = matmul(Prop_down, matmul(matmul(self.R, self.T), np.transpose(self.R)))
-
+            # Update loop constants
             z_prop += dzs[layer_n]
-
-            if verbose:
-                print('prop down layer:',layer_n)
-                print('z:', dzs[layer_n])
-                print('Chi:', (self.m_1,self.m_2))
-                print('Psi:', self.psi_)
-                print('Theta:', self.theta_)
-
             layer_n += 1
 
-
         # Some depth into the final layer
-        if z_prop < z:
-            if uniform:
-                pass
-            else:
-                self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
-            self.rotation(self.psi_)
-            self.transmission(z-z_prop)
-            Prop_down = matmul(Prop_down,matmul(matmul(self.R,self.T),np.transpose(self.R)))
-
-            # Set the reflection matrix
-            self.reflection(gamma[0], gamma[1])
-            Reflection = matmul(matmul(self.R, self.G), np.transpose(self.R))
-
-            if verbose:
-                print('Reflection with Gamma:',gamma)
+        self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
+        self.rotation(self.psi_)
+        self.transmission(z-z_prop)
+        Prop_down = matmul(Prop_down,matmul(matmul(self.R,self.T),np.transpose(self.R)))
 
 
-            if uniform:
-                self.ice_properties(idctx=idctx, chi=chis[0], psi=psis[0], theta=thetas[0], prop_up=True)
-                pass
-            else:
-                self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
-            self.rotation(self.psi__)
-            self.transmission(z-z_prop)
-            Prop_up = matmul(Prop_up,matmul(matmul(self.R,self.T),np.transpose(self.R)))
-
-            if verbose:
-                print('prop down/up layer:',layer_n)
-                print('z:',z-z_prop)
-                print('Chi:', (self.m_1,self.m_2))
-                print('Psi:', self.psi_)
-                print('Theta:', self.theta_)
+        # Set the reflection matrix
+        # ------------------------------------------- #
+        self.reflection(gamma[0], gamma[1])
+        Reflection = matmul(matmul(self.R, self.G), np.transpose(self.R))
 
 
+        ### Propagate upward, updating scattering matrix through each layer
+        # ------------------------------------------- #
+        self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
+        self.rotation(self.psi__)
+        self.transmission(z-z_prop)
+        Prop_up = matmul(Prop_up,matmul(matmul(self.R,self.T),np.transpose(self.R)))
 
-        # Propagate upward, updating scattering matrix through each layer
         layer_n -= 1
         while (z_prop-dzs[0]) >= 0:
-            if uniform:
-                pass
-            else:
-                self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
+            self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
             self.rotation(self.psi__)
             self.transmission(dzs[layer_n])
             # Update the electrical field upward propagation to the scattering interface
             Prop_up = matmul(Prop_up, matmul(matmul(self.R, self.T), np.transpose(self.R)))
-
+            # Update loop constants
             z_prop -= dzs[layer_n]
-
-            if verbose:
-                print('prop up layer:',layer_n)
-                print('z:', dzs[layer_n])
-                print('Chi:', (self.m_1,self.m_2))
-                print('Psi:', self.psi_)
-                print('Theta:', self.theta_)
-
             layer_n -= 1
 
+
         # Return scattering matrix
+        # ------------------------------------------- #
         if D is None:
             self.S = matmul(matmul(Prop_up,Reflection),Prop_down)
         else:
