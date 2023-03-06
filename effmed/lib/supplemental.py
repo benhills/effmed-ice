@@ -15,5 +15,9 @@ Supplemental functions for the effective medium model
 def dB(P):
     """
     Convert power to decibels
+
+    Parameters
+    ----------
+    P:  float,  Power
     """
     return 10.*np.log10(P)

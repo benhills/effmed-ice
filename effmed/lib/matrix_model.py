@@ -8,7 +8,7 @@ Created on Mon Mar 1 2023
 
 import numpy as np
 from numpy import matmul
-from .indicatrices import get_indicatrix
+from .indicatrices import get_prop_const
 
 
 class effective_medium():
@@ -31,7 +31,7 @@ class effective_medium():
 
 
     def system_setup(self, fc=3e8, psi_w=0., theta_w=0.,
-                     antenna_sep=None, H=None, antenna_pol='VV'):
+                     antenna_sep=None, H=None):
         """
         Specify system parameters including waveform characteristics
         and antenna polarizations
@@ -39,11 +39,10 @@ class effective_medium():
         Parameters
         ----------
         fc:             float,  center frequency of transmitted wave (Hz)
-        theta_w:        float,  polar angle of antenna array
         psi_w:          float,  azimuthal angle of antenna array
+        theta_w:        float,  polar angle of antenna array
         antenna_sep:    float,  antenna separation (m)
         H:              float,  ice thickness (m)
-        antenna_pol:    str,    antenna polarization [transmit, receive]
         """
 
         self.fc = fc                    # system center frequency
@@ -63,24 +62,8 @@ class effective_medium():
         else:
             self.theta_w = theta_w
 
-        # transmit polarization
-        if antenna_pol[0] == 'V':
-            self.Wt = np.array([1, 0])
-        elif antenna_pol[0] == 'H':
-            self.Wt = np.array([0, 1])
-        else:
-            raise('Only V and H polarizations are accepted.')
 
-        # receive polarization
-        if antenna_pol[1] == 'V':
-            self.Wr = np.array([1, 0])
-        elif antenna_pol[1] == 'H':
-            self.Wr = np.array([0, 1])
-        else:
-            raise('Only V and H polarizations are accepted, prescribe angle to rotate.')
-
-
-    def ice_properties(self, fabric='vertical-girdle', T=None, epsr=3.12, epsc=0.,
+    def ice_properties(self, idctx='none', T=None, epsr=3.12, epsc=0.,
                        theta=0., psi= 0., chi=[.5, 0., .5], prop_up=False):
         """
         Set the ice properties including permittivity
@@ -88,16 +71,15 @@ class effective_medium():
 
         Parameters
         ----------
-        fabric:     str,    qualitative fabric 'type' for indicatrix selection
-        T:          float,  ice temperature
-        epsr:       float,  relative permittivity
-        epsr2:       float,  complex relative permittivity
-        chi:        array,  c-axes distribution (eigenvalues)
-        theta:      float,  polar angle of vertical eigenvector (chi[2])
-        psi:        float,  azimuthal angle of vertical eigenvalue (chi[2])
+        idctx:     str,    qualitative fabric 'type' for indicatrix selection
+        T:              float,  ice temperature
+        epsr:           float,  relative permittivity
+        epsc:           float,  complex relative permittivity
+        theta:          float,  polar angle of vertical eigenvector (chi[2])
+        psi:            float,  azimuthal angle of vertical eigenvalue (chi[2])
+        chi:            array,  c-axes distribution (eigenvalues)
+        prop_up:        bool,   propagate up? changes the indicatrix output
         """
-
-        self.fabric = fabric
 
         # Save input variables to the model class
         self.mr_perp = np.sqrt(epsr)    # relative permittivity of ice for perpendicular polarization
@@ -108,18 +90,18 @@ class effective_medium():
             # Temperature based anisotropy constant from
             # Fujita et al. (2006) eq. 3
             self.depsr = 0.0256 + 3.57e-5 * T
-            self.depsc = 0.0
+            self.depsc = 0.0    #TODO: set this
         else:
             # for ice at approximately -35 C
             self.depsr = 0.034
-            self.depsc = 0.0
+            self.depsc = 0.0    #TODO: set this
 
         # set the parallel permittivity
         self.mr_par = np.sqrt(self.mr_perp**2. + self.depsr)
         self.mc_par = np.sqrt(self.mc_perp**2. + self.depsc)
 
         # use external functions to get the indicatrix
-        get_indicatrix(self, fabric, theta, psi, prop_up)
+        get_prop_const(self, idctx, theta, psi, prop_up)
 
 
     def reflection(self,gammax=1., gammay=1.):
@@ -189,7 +171,7 @@ class effective_medium():
 
 
     def single_depth_solve(self,z,dzs,thetas,psis,chis,gamma=[1., 1.],
-                           indicatrix_psi=True, D=None, verbose=False):
+                           idctx='none', D=None, verbose=False):
         """
         Solve at a single depth for all 4 polarizations
 
@@ -210,7 +192,7 @@ class effective_medium():
             psis = np.array([psis])
             thetas = np.array([thetas])
             chis = np.array([chis])
-            self.ice_properties(fabric=self.fabric, theta=thetas[0], psi=psis[0], chi=chis[0])
+            self.ice_properties(idctx=idctx, theta=thetas[0], psi=psis[0], chi=chis[0])
             uniform = True
         else:
             uniform = False
@@ -225,11 +207,8 @@ class effective_medium():
             if uniform:
                 pass
             else:
-                self.ice_properties(fabric=self.fabric, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
-            if indicatrix_psi:
-                self.rotation(self.psi_)
-            else:
-                self.rotation(psis[layer_n])
+                self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
+            self.rotation(self.psi_)
             self.transmission(dzs[layer_n])
             # Update the electrical field downward propagation to the scattering interface
             Prop_down = matmul(Prop_down, matmul(matmul(self.R, self.T), np.transpose(self.R)))
@@ -251,11 +230,8 @@ class effective_medium():
             if uniform:
                 pass
             else:
-                self.ice_properties(fabric=self.fabric, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
-            if indicatrix_psi:
-                self.rotation(self.psi_)
-            else:
-                self.rotation(psis[layer_n])
+                self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
+            self.rotation(self.psi_)
             self.transmission(z-z_prop)
             Prop_down = matmul(Prop_down,matmul(matmul(self.R,self.T),np.transpose(self.R)))
 
@@ -268,16 +244,11 @@ class effective_medium():
 
 
             if uniform:
-                self.ice_properties(fabric=self.fabric, chi=chis[0], psi=psis[0], theta=thetas[0], prop_up=True)
+                self.ice_properties(idctx=idctx, chi=chis[0], psi=psis[0], theta=thetas[0], prop_up=True)
                 pass
             else:
-                self.ice_properties(fabric=self.fabric, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
-            if indicatrix_psi:
-                if verbose:
-                    print('hit')
-                self.rotation(self.psi__)
-            else:
-                self.rotation(psis[layer_n])
+                self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
+            self.rotation(self.psi__)
             self.transmission(z-z_prop)
             Prop_up = matmul(Prop_up,matmul(matmul(self.R,self.T),np.transpose(self.R)))
 
@@ -296,11 +267,8 @@ class effective_medium():
             if uniform:
                 pass
             else:
-                self.ice_properties(fabric=self.fabric, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
-            if indicatrix_psi:
-                self.rotation(self.psi__)
-            else:
-                self.rotation(psis[layer_n])
+                self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
+            self.rotation(self.psi__)
             self.transmission(dzs[layer_n])
             # Update the electrical field upward propagation to the scattering interface
             Prop_up = matmul(Prop_up, matmul(matmul(self.R, self.T), np.transpose(self.R)))
@@ -325,7 +293,7 @@ class effective_medium():
             self.S = self.D**2.*matmul(matmul(Prop_up,Reflection),Prop_down)
 
 
-    def solve(self, zs, dzs, thetas, psis, chis, gammas=None, D=None, indicatrix_psi=True):
+    def solve(self, zs, dzs, thetas, psis, chis, idctx='none', gammas=None, D=None):
         """
         Solve for a full column return of all 4 polarizations
 
@@ -348,7 +316,7 @@ class effective_medium():
                 gamma = gammas
             else:
                 gamma = gammas[i]
-            self.single_depth_solve(z, dzs, thetas, psis, chis, gamma, D=D, indicatrix_psi=indicatrix_psi)
+            self.single_depth_solve(z, dzs, thetas, psis, chis, gamma, idctx=idctx, D=D)
             self.shh[i] = self.S[0, 0]
             self.shv[i] = self.S[0, 1]
             self.svh[i] = self.S[1, 0]
