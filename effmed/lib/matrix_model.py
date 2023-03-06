@@ -81,7 +81,7 @@ class effective_medium():
 
 
     def ice_properties(self, fabric='vertical-girdle', T=None, epsr=3.12, epsc=0.,
-                       chi=[.5, 0., .5], theta=0., psi=0.):
+                       theta=0., psi= 0., chi=[.5, 0., .5], prop_up=False):
         """
         Set the ice properties including permittivity
         and crystal orientation fabric
@@ -119,7 +119,7 @@ class effective_medium():
         self.mc_par = np.sqrt(self.mc_perp**2. + self.depsc)
 
         # use external functions to get the indicatrix
-        get_indicatrix(self, fabric, theta, psi)
+        get_indicatrix(self, fabric, theta, psi, prop_up)
 
 
     def reflection(self,gammax=1., gammay=1.):
@@ -135,7 +135,7 @@ class effective_medium():
         self.G = np.array([[gammax,0],[0,gammay]])
 
 
-    def rotation(self, phi):
+    def rotation(self, psi):
         """
         Rotation Matrix
         Fujita et al. (2006) eq. 10
@@ -145,8 +145,8 @@ class effective_medium():
         theta:      float,  angle
         """
 
-        self.R = np.array([[np.cos(phi), -np.sin(phi)],
-                           [np.sin(phi), np.cos(phi)]])
+        self.R = np.array([[np.cos(psi), -np.sin(psi)],
+                           [np.sin(psi), np.cos(psi)]])
 
 
     def freespace(self,z):
@@ -180,77 +180,152 @@ class effective_medium():
         dl = dz*np.cos(self.theta_w)
 
         # Transmission components (Fujita et al., 2006; eq 6)
-        T_1 = np.exp(-1j*self.k0*dz+1j*self.k_1*dl)
-        T_2 = np.exp(-1j*self.k0*dz+1j*self.k_2*dl)
+        T_1 = np.exp(-1j*self.k0*dl+1j*self.k_1*dl)
+        T_2 = np.exp(-1j*self.k0*dl+1j*self.k_2*dl)
 
         # Transmission matrix (Fujita et al., 2006; eq 5)
         self.T = np.array([[T_1, 0],
                            [0, T_2]])
 
 
-    def single_depth_solve(self,z,dz,phis,chis,gamma=[1., 1.],D=None):
+    def single_depth_solve(self,z,dzs,thetas,psis,chis,gamma=[1., 1.],
+                           indicatrix_psi=True, D=None, verbose=False):
         """
         Solve at a single depth for all 4 polarizations
 
         Parameters
         ----------
+        z:     float,  reflectivity in x-dir
+        dzs:     float,  reflectivity in x-dir
+        thetas:     float,  reflectivity in x-dir
+        psis:     float,  reflectivity in x-dir
+        chis:     float,  reflectivity in x-dir
         gamma:     float,  reflectivity in x-dir
-
+        D:     float,  reflectivity in x-dir
         """
 
-        # Number of layers
-        N = int(z//dz)
         # If the ice properties are constant fill in placeholder arrays
-        if type(phis) is float and np.shape(chis) == (3,):
-            phi = phis
+        if type(thetas) is float and type(psis) is float and np.shape(chis) == (3,):
+            dzs = np.array([dzs])
+            psis = np.array([psis])
+            thetas = np.array([thetas])
+            chis = np.array([chis])
+            self.ice_properties(fabric=self.fabric, theta=thetas[0], psi=psis[0], chi=chis[0])
             uniform = True
         else:
             uniform = False
 
         # Initiate propagation arrays as identity
-        Prop_down = np.eye(2).astype(np.complex)
-        Prop_up = np.eye(2).astype(np.complex)
+        Prop_down = np.eye(2).astype(complex)
+        Prop_up = np.eye(2).astype(complex)
 
-        # For each layer, update the propagation arrays
-        for layer in range(N):
-            if uniform:
-               pass
-            else:
-                phi = phis[layer]
-                self.ice_properties(fabric=self.fabric, chi=chis[layer])
-            self.rotation(phi)
-            self.transmission(dz)
-            # Update the electrical field downward propagation to the scattering interface
-            Prop_down = matmul(Prop_down, matmul(matmul(self.R, self.T), np.transpose(self.R)))
-            # Update upward propagation
-            Prop_up = matmul(Prop_up, matmul(matmul(self.R, self.T), np.transpose(self.R)))
-
-        # Some depth into the final layer
-        if z % dz > 0:
+        # Propagate downward, updating scattering matrix through each layer
+        layer_n, z_prop = 0, 0
+        while (z_prop+dzs[-1]) < z:
             if uniform:
                 pass
             else:
-                phi = phis[layer]
-                self.ice_properties(fabric=self.fabric, chi=chis[layer])
-            self.rotation(phi)
-            self.transmission(z%dz)
+                self.ice_properties(fabric=self.fabric, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
+            if indicatrix_psi:
+                self.rotation(self.psi_)
+            else:
+                self.rotation(psis[layer_n])
+            self.transmission(dzs[layer_n])
+            # Update the electrical field downward propagation to the scattering interface
+            Prop_down = matmul(Prop_down, matmul(matmul(self.R, self.T), np.transpose(self.R)))
+
+            z_prop += dzs[layer_n]
+
+            if verbose:
+                print('prop down layer:',layer_n)
+                print('z:', dzs[layer_n])
+                print('Chi:', (self.m_1,self.m_2))
+                print('Psi:', self.psi_)
+                print('Theta:', self.theta_)
+
+            layer_n += 1
+
+
+        # Some depth into the final layer
+        if z_prop < z:
+            if uniform:
+                pass
+            else:
+                self.ice_properties(fabric=self.fabric, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
+            if indicatrix_psi:
+                self.rotation(self.psi_)
+            else:
+                self.rotation(psis[layer_n])
+            self.transmission(z-z_prop)
             Prop_down = matmul(Prop_down,matmul(matmul(self.R,self.T),np.transpose(self.R)))
+
+            # Set the reflection matrix
+            self.reflection(gamma[0], gamma[1])
+            Reflection = matmul(matmul(self.R, self.G), np.transpose(self.R))
+
+            if verbose:
+                print('Reflection with Gamma:',gamma)
+
+
+            if uniform:
+                self.ice_properties(fabric=self.fabric, chi=chis[0], psi=psis[0], theta=thetas[0], prop_up=True)
+                pass
+            else:
+                self.ice_properties(fabric=self.fabric, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
+            if indicatrix_psi:
+                if verbose:
+                    print('hit')
+                self.rotation(self.psi__)
+            else:
+                self.rotation(psis[layer_n])
+            self.transmission(z-z_prop)
             Prop_up = matmul(Prop_up,matmul(matmul(self.R,self.T),np.transpose(self.R)))
 
-        # Set the reflection matrix
-        self.reflection(gamma[0], gamma[1])
-        Reflection = matmul(matmul(self.R, self.G), np.transpose(self.R))
+            if verbose:
+                print('prop down/up layer:',layer_n)
+                print('z:',z-z_prop)
+                print('Chi:', (self.m_1,self.m_2))
+                print('Psi:', self.psi_)
+                print('Theta:', self.theta_)
+
+
+
+        # Propagate upward, updating scattering matrix through each layer
+        layer_n -= 1
+        while (z_prop-dzs[0]) >= 0:
+            if uniform:
+                pass
+            else:
+                self.ice_properties(fabric=self.fabric, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
+            if indicatrix_psi:
+                self.rotation(self.psi__)
+            else:
+                self.rotation(psis[layer_n])
+            self.transmission(dzs[layer_n])
+            # Update the electrical field upward propagation to the scattering interface
+            Prop_up = matmul(Prop_up, matmul(matmul(self.R, self.T), np.transpose(self.R)))
+
+            z_prop -= dzs[layer_n]
+
+            if verbose:
+                print('prop up layer:',layer_n)
+                print('z:', dzs[layer_n])
+                print('Chi:', (self.m_1,self.m_2))
+                print('Psi:', self.psi_)
+                print('Theta:', self.theta_)
+
+            layer_n -= 1
 
         # Return scattering matrix
         if D is None:
-            self.S = matmul(matmul(Prop_down,Reflection),Prop_up)
+            self.S = matmul(matmul(Prop_up,Reflection),Prop_down)
         else:
             # Add the free space propagation term if desired
             self.attenuation(z)
-            self.S = self.D**2.*matmul(matmul(Prop_down,Reflection),Prop_up)
+            self.S = self.D**2.*matmul(matmul(Prop_up,Reflection),Prop_down)
 
 
-    def solve(self, zs, dz, phis, chis, gammas=None, D=None):
+    def solve(self, zs, dzs, thetas, psis, chis, gammas=None, D=None, indicatrix_psi=True):
         """
         Solve for a full column return of all 4 polarizations
 
@@ -273,8 +348,7 @@ class effective_medium():
                 gamma = gammas
             else:
                 gamma = gammas[i]
-            self.single_depth_solve(z, dz, phis, chis, gamma, D=D)
-            # TODO: Is this right?? seems wrong
+            self.single_depth_solve(z, dzs, thetas, psis, chis, gamma, D=D, indicatrix_psi=indicatrix_psi)
             self.shh[i] = self.S[0, 0]
             self.shv[i] = self.S[0, 1]
             self.svh[i] = self.S[1, 0]
