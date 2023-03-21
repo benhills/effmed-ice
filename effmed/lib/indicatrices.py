@@ -100,7 +100,7 @@ def single_pole_indicatrix(em, theta, psi, prop_up):
         em.mc_2 = em.mc_perp
 
 
-def vertical_girdle_indicatrix(em, psi):
+def vertical_girdle_indicatrix(em, psi=0.):
     """
     Get the indicatrix for a Vertical Girdle fabric
     Matsuoka 2009 Appendix IIB
@@ -112,27 +112,27 @@ def vertical_girdle_indicatrix(em, psi):
     """
 
     #
-    A = (np.cos(em.psi_w)**2./(em.m1**2.)+np.sin(em.psi_w)**2./(em.m2**2.)) *\
+    A = (np.cos(psi-em.psi_w)**2./(em.m1**2.)+np.sin(psi-em.psi_w)**2./(em.m2**2.)) *\
         np.cos(em.theta_w)**2. + np.sin(em.theta_w)**2./(em.m3**2.)
-    B = -(1./(em.m1**2.)-1./(em.m2**2.))*np.cos(em.theta_w)*np.sin(2.*em.psi_w)
-    C = np.sin(em.psi_w)**2./(em.m1**2.)+np.cos(em.psi_w)**2./(em.m2**2.)
-    em.m_1 = np.sqrt(2./(A+C+np.sqrt(B**2.+(A-C)**2.)))
-    em.m_2 = np.sqrt(2./(A+C-np.sqrt(B**2.+(A-C)**2.)))
+    B = -(1./(em.m1**2.)-1./(em.m2**2.))*np.cos(em.theta_w)*np.sin(2.*(psi-em.psi_w))
+    C = np.sin(psi-em.psi_w)**2./(em.m1**2.)+np.cos(psi-em.psi_w)**2./(em.m2**2.)
+    em.m_1 = np.sqrt(2./(A+C-np.sqrt(B**2.+(A-C)**2.)))
+    em.m_2 = np.sqrt(2./(A+C+np.sqrt(B**2.+(A-C)**2.)))
 
     #
     if em.mc_perp == 0. and em.mc_par == 0.:
         em.mc_1 = 0.
         em.mc_2 = 0.
     else:
-        A = (np.cos(em.psi_w)**2./(em.mc1**2.) + np.sin(em.psi_w)**2./(em.mc2**2.)) *\
+        A = (np.cos(psi-em.psi_w)**2./(em.mc1**2.) + np.sin(psi-em.psi_w)**2./(em.mc2**2.)) *\
             np.cos(em.theta_w)**2. + np.sin(em.theta_w)**2./(em.mc3**2.)
-        B = -(1./(em.mc1**2.)-1./(em.mc2**2.))*np.cos(em.theta_w)*np.sin(2.*em.psi_w)
-        C = np.sin(em.psi_w)**2./(em.mc1**2.)+np.cos(em.psi_w)**2./(em.mc2**2.)
-        em.mc_1 = np.sqrt(2./(A+C+np.sqrt(B**2.+(A-C)**2.)))
-        em.mc_2 = np.sqrt(2./(A+C-np.sqrt(B**2.+(A-C)**2.)))
+        B = -(1./(em.mc1**2.)-1./(em.mc2**2.))*np.cos(em.theta_w)*np.sin(2.*(psi-em.psi_w))
+        C = np.sin(psi-em.psi_w)**2./(em.mc1**2.)+np.cos(psi-em.psi_w)**2./(em.mc2**2.)
+        em.mc_1 = np.sqrt(2./(A+C-np.sqrt(B**2.+(A-C)**2.)))
+        em.mc_2 = np.sqrt(2./(A+C+np.sqrt(B**2.+(A-C)**2.)))
 
     #
-    if em.psi_w == 0.:
+    if (psi-em.psi_w) == 0.:
         em.psi_ = 0.
     else:
         em.psi_ = 1/2.*np.arctan(B/(A-C))
