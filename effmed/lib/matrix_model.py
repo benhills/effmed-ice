@@ -63,7 +63,7 @@ class effective_medium():
             self.theta_w = theta_w
 
 
-    def ice_properties(self, idctx='none', T=None, epsr=3.12, epsc=0.,
+    def ice_properties(self, idctx='vertical-girdle', T=None, epsr=3.12, epsi=0.,
                        theta=0., psi= 0., chi=[.5, 0., .5], prop_up=False):
         """
         Set the ice properties including permittivity
@@ -73,32 +73,32 @@ class effective_medium():
         ----------
         idctx:      str,    qualitative fabric 'type' for indicatrix selection
         T:          float,  ice temperature
-        epsr:       float,  relative permittivity
-        epsc:       float,  complex relative permittivity
+        epsr:       float,  real relative permittivity
+        epsc:       float,  imaginary relative permittivity
         theta:      float,  polar angle of vertical eigenvector (chi[2])
-        psi:        float,  azimuthal angle of vertical eigenvalue (chi[2])
+        psi:        float,  azimuthal angle of vertical eigenvalue or girdle
         chi:        array,  c-axes distribution (eigenvalues)
         prop_up:    bool,   propagate up? changes the indicatrix output
         """
 
         # Save input variables to the model class
-        self.mr_perp = np.sqrt(epsr)    # relative permittivity of ice for perpendicular polarization
-        self.mc_perp = np.sqrt(epsc)    # complex permittivity of ice for perpendicular polarization
+        self.mr_perp = np.sqrt(epsr)    # real relative permittivity of ice for perpendicular polarization
+        self.mi_perp = np.sqrt(epsi)    # imaginary relative permittivity of ice for perpendicular polarization
         self.chi = chi                  # eigenvalues of the c-axes distribution
 
         if T is not None:
             # Temperature based anisotropy constant from
             # Fujita et al. (2006) eq. 3
             self.depsr = 0.0256 + 3.57e-5 * T
-            self.depsc = 0.0    #TODO: set this
+            self.depsi = 0j #TODO: get the imaginary component
         else:
             # for ice at approximately -35 C
             self.depsr = 0.034
-            self.depsc = 0.0    #TODO: set this
+            self.depsi = 0j #TODO: get the imaginary component
 
         # set the parallel permittivity
         self.mr_par = np.sqrt(self.mr_perp**2. + self.depsr)
-        self.mc_par = np.sqrt(self.mc_perp**2. + self.depsc)
+        self.mi_par = np.sqrt(self.mi_perp**2. + self.depsi)
 
         # use external functions to get the indicatrix
         get_prop_const(self, idctx, theta, psi, prop_up)
@@ -160,8 +160,8 @@ class effective_medium():
         dl = dz/np.cos(self.theta_w)
 
         # Transmission components (Fujita et al., 2006; eq 6)
-        T_1 = np.exp(-1j*self.k0*dl+1j*self.k_1*dl)
-        T_2 = np.exp(-1j*self.k0*dl+1j*self.k_2*dl)
+        T_1 = np.exp(-1j*self.k0*dl+1j*self.k[0]*dl)
+        T_2 = np.exp(-1j*self.k0*dl+1j*self.k[1]*dl)
 
         # Transmission matrix (Fujita et al., 2006; eq 5)
         self.T = np.array([[T_1, 0],
@@ -169,20 +169,20 @@ class effective_medium():
 
 
     def single_depth_solve(self,z,dzs,thetas,psis,chis,gamma=[1., 1.],
-                           idctx='none', D=None):
+                           idctx='vertical-girdle', free_space=False):
         """
         Solve at a single depth for all 4 polarizations
 
         Parameters
         ----------
-        z:          float,  reflectivity in x-dir
-        dzs:        float,  reflectivity in x-dir
-        thetas:     float,  reflectivity in x-dir
-        psis:       float,  reflectivity in x-dir
-        chis:       float,  reflectivity in x-dir
-        gamma:      float,  reflectivity in x-dir
-        idctx:      str,
-        D:          float,  reflectivity in x-dir
+        z:          float,      total propagation depth in the vertical
+        dzs:        Nx1-array,  layer thicknesses
+        thetas:     Nx1-array,  polar angles for each layer
+        psis:       Nx1-array,  azimuthal angles for each layer
+        chis:       Nx3-array,  eigenvalues of the crystal orientation fabric for each layer
+        gamma:      array,      reflectivity in x and y directions
+        idctx:      str,        qualitative fabric 'type' for indicatrix selection
+        free_space: bool,       include free space transmission losses or not
         """
 
         # If the ice properties are constant fill in placeholder arrays
@@ -242,32 +242,37 @@ class effective_medium():
 
         # Return scattering matrix
         # ------------------------------------------- #
-        if D is None:
+        if free_space is False:
             self.S = matmul(matmul(Prop_up,Reflection),Prop_down)
         else:
             # Add the free space propagation term if desired
-            self.attenuation(z)
+            self.freespace(z)
             self.S = self.D**2.*matmul(matmul(Prop_up,Reflection),Prop_down)
 
 
-    def solve(self, zs, dzs, thetas, psis, chis, idctx='none', gammas=None, D=None):
+    def solve(self, zs, dzs, thetas, psis, chis, idctx='vertical-girdle', gammas=None, free_space=False):
         """
         Solve for a full column return of all 4 polarizations
 
         Parameters
         ----------
-        gammas:     float,  reflectivity in x-dir
-        gammay:     float,  reflectivity in y-dir
+        zs:         array,      monotonically increasing depth array (from top to bottom, z)
+        dzs:        Nx1-array,  layer thicknesses
+        thetas:     Nx1-array,  polar angles for each layer
+        psis:       Nx1-array,  azimuthal angles for each layer
+        chis:       Nx3-array,  eigenvalues of the crystal orientation fabric for each layer
+        gammas:     array,      reflectivity in x and y directions for each layer (or same for all layers)
+        idctx:      str,        qualitative fabric 'type' for indicatrix selection
+        free_space: bool,       include free space transmission losses or not
         """
 
-        #
+        # Pre-assign output arrays
         self.range = zs
         self.shh = np.empty(len(zs)).astype(complex)
         self.svv = np.empty(len(zs)).astype(complex)
         self.shv = np.empty(len(zs)).astype(complex)
-        self.svh = np.empty(len(zs)).astype(complex)
         for i, z in enumerate(zs):
-            #
+            # Get the reflectivity for this depth
             if gammas is None:
                 gamma = [1., 1.]
             elif np.shape(gammas) == (2,):
@@ -275,11 +280,11 @@ class effective_medium():
             else:
                 gamma = gammas[i]
 
-            #
-            self.single_depth_solve(z, dzs, thetas, psis, chis, gamma, idctx=idctx, D=D)
+            # Do the wave propagation solve at this depth
+            self.single_depth_solve(z, dzs, thetas, psis, chis, gamma, idctx=idctx, free_space=free_space)
 
-            #
+            # Assign results for each polarization to their respective array
             self.shh[i] = self.S[0, 0]
-            self.shv[i] = self.S[0, 1]
-            self.svh[i] = self.S[1, 0]
             self.svv[i] = self.S[1, 1]
+            self.shv[i] = self.S[0, 1]
+        self.svh = self.shv.copy()

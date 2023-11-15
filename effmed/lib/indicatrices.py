@@ -12,48 +12,38 @@ import numpy as np
 Indicatrices for single pole and vertical girdle fabrics based on Matsuoka et al. (2009)
 """
 
-
 def get_prop_const(em, indicatrix, theta, psi, prop_up):
     """
 
     Parameters
     ----------
     em:     class,  effective medium model class
+    indicatrix:      str,    qualitative fabric 'type' for indicatrix selection
+    theta:      float,  polar angle of vertical eigenvector (chi[2])
+    psi:        float,  azimuthal angle of vertical eigenvalue or girdle
+    prop_up:    bool,   propagate up? changes the indicatrix output
     """
 
-    #
-    em.m1 = (1-em.chi[0])*em.mr_perp + em.chi[0]*em.mr_par
-    em.m2 = (1-em.chi[1])*em.mr_perp + em.chi[1]*em.mr_par
-    em.m3 = (1-em.chi[2])*em.mr_perp + em.chi[2]*em.mr_par
-    #
-    em.mc1 = (1-em.chi[0])*em.mc_perp + em.chi[0]*em.mc_par
-    em.mc2 = (1-em.chi[1])*em.mc_perp + em.chi[1]*em.mc_par
-    em.mc3 = (1-em.chi[2])*em.mc_perp + em.chi[2]*em.mc_par
+    # Get real and imaginary refractive index along crystal orientation fabric
+    em.mr = np.array([(1-em.chi[0])*em.mr_perp + em.chi[0]*em.mr_par,
+                    (1-em.chi[1])*em.mr_perp + em.chi[1]*em.mr_par,
+                    (1-em.chi[2])*em.mr_perp + em.chi[2]*em.mr_par])
+    em.mi = np.array([(1-em.chi[0])*em.mi_perp + em.chi[0]*em.mi_par,
+                    (1-em.chi[1])*em.mi_perp + em.chi[1]*em.mi_par,
+                    (1-em.chi[2])*em.mi_perp + em.chi[2]*em.mi_par])
 
-    #
-    if indicatrix == 'none':
-        em.m_1 = em.m1
-        em.m_2 = em.m2
-        em.mc_1 = em.mc1
-        em.mc_2 = em.mc2
-        em.psi_ = psi
-        em.psi__ = psi
-    elif indicatrix == 'single-pole':
+    # Rotate refractive index based on wave propagation path
+    if indicatrix == 'single-pole':
         single_pole_indicatrix(em, theta, psi, prop_up)
     elif indicatrix == 'vertical-girdle':
         vertical_girdle_indicatrix(em, psi)
     else:
         raise TypeError('Indicatrix not recognized; choose from single-pole or vertical-girdle.')
 
-    # Electrical conductivity
-    em.sigma_1 = em.omega*em.eps0*em.mc_1
-    em.sigma_2 = em.omega*em.eps0*em.mc_2
-
-    # Propagation constants (Fujita et al., 2006; eq 7)
-    em.k_1 = np.sqrt(em.eps0*em.mu0*em.m_1**2.*em.omega**2. +
-                     1j*em.mu0*em.sigma_1*em.omega)
-    em.k_2 = np.sqrt(em.eps0*em.mu0*em.m_2**2.*em.omega**2. +
-                     1j*em.mu0*em.sigma_2*em.omega)
+    # Get conductivity and propagation constant from refractive index (Fujita et al., 2006; eq 7)
+    em.sigma = em.omega*em.eps0*em.mi_**2. # conductivity
+    em.k = np.sqrt(em.eps0*em.mu0*em.mr_**2.*em.omega**2. +
+                     1j*em.mu0*em.sigma*em.omega) # propagation constant
 
 
 def single_pole_indicatrix(em, theta, psi, prop_up):
@@ -64,12 +54,12 @@ def single_pole_indicatrix(em, theta, psi, prop_up):
     Parameters
     ----------
     em:         class,  effective medium model class
-    theta:      float,  effective medium model class
-    psi:        flaot,  effective medium model class
-    prop_up:    flaot,  effective medium model class
+    theta:      float,  polar angle of vertical eigenvector (chi[2])
+    psi:        float,  azimuthal angle of vertical eigenvalue or girdle
+    prop_up:    bool,   propagate up? changes the indicatrix output
     """
 
-    #
+    # Get rotation angles for downward (_) and upward (__) propagation
     em.psi_ = np.arctan(np.sin(theta)*np.sin(psi-em.psi_w)/(np.cos(em.theta_w)*np.sin(theta) * \
                         np.cos(psi-em.psi_w)-np.sin(em.theta_w)*np.cos(theta)))
     em.theta_ = np.arccos(np.cos(em.theta_w)*np.cos(theta)+np.sin(em.theta_w)*np.sin(theta)*np.cos(psi-em.psi_w))
@@ -77,30 +67,25 @@ def single_pole_indicatrix(em, theta, psi, prop_up):
                         np.cos(psi-em.psi_w)+np.sin(em.theta_w)*np.cos(theta)))
     em.theta__ = np.arccos(np.cos(em.theta_w)*np.cos(theta)-np.sin(em.theta_w)*np.sin(theta)*np.cos(psi-em.psi_w))
 
-    #
-    em.m_par = em.m3
-    em.m_perp = em.m1
+    # Rotate index of refraction
     if prop_up:
-        em.m_1 = em.m_par*em.m_perp/np.sqrt(em.m_par**2.*np.cos(em.theta__)**2. + em.m_perp**2.*np.sin(em.theta__)**2.)
+        em.mr_ = np.array([em.mr[2]*em.mr[0]/np.sqrt(em.mr[2]**2.*np.cos(em.theta__)**2. + em.mr[0]**2.*np.sin(em.theta__)**2.),
+                           em.mr[0]])
     else:
-        em.m_1 = em.m_par*em.m_perp/np.sqrt(em.m_par**2.*np.cos(em.theta_)**2. + em.m_perp**2.*np.sin(em.theta_)**2.)
-    em.m_2 = em.m_perp
-
-    #
-    if em.mc_perp == 0. and em.mc_par == 0.:
-        em.mc_1 = 0.
-        em.mc_2 = 0.
+        em.mr_ = np.array([em.mr[2]*em.mr[0]/np.sqrt(em.mr[2]**2.*np.cos(em.theta_)**2. + em.mr[0]**2.*np.sin(em.theta_)**2.),
+                           em.mr[0]])
+    if np.all(em.mi==0.):
+        em.mi_ = np.array([0.,0.])
     else:
-        em.mc_par = em.mc3
-        em.mc_perp = em.mc1
         if prop_up:
-            em.mc_1 = em.mc_par*em.mc_perp/np.sqrt(em.mc_par**2.*np.cos(em.theta__)**2. + em.mc_perp**2.*np.sin(em.theta__)**2.)
+            em.mi_ = np.array([em.mi[2]*em.mi[0]/np.sqrt(em.mi[2]**2.*np.cos(em.theta__)**2. + em.mi[0]**2.*np.sin(em.theta__)**2.),
+                               em.mi[0]])
         else:
-            em.mc_1 = em.mc_par*em.mc_perp/np.sqrt(em.mc_par**2.*np.cos(em.theta_)**2. + em.mc_perp**2.*np.sin(em.theta_)**2.)
-        em.mc_2 = em.mc_perp
+            em.mi_ = np.array([em.mi[2]*em.mi[0]/np.sqrt(em.mi[2]**2.*np.cos(em.theta_)**2. + em.mi[0]**2.*np.sin(em.theta_)**2.),
+                               em.mi[0]])
 
 
-def vertical_girdle_indicatrix(em, psi=0.):
+def vertical_girdle_indicatrix(em, psi=0., tol = 1e-10):
     """
     Get the indicatrix for a Vertical Girdle fabric
     Matsuoka 2009 Appendix IIB
@@ -108,31 +93,33 @@ def vertical_girdle_indicatrix(em, psi=0.):
     Parameters
     ----------
     em:         class,  effective medium model class
-    psi:        flaot,  effective medium model class
+    psi:        float,  azimuthal angle of vertical eigenvalue or girdle
+    tol:        float,  tolerance for cutting off psi_ = 0
     """
 
-    #
-    A = (np.cos(psi-em.psi_w)**2./(em.m1**2.)+np.sin(psi-em.psi_w)**2./(em.m2**2.)) *\
-        np.cos(em.theta_w)**2. + np.sin(em.theta_w)**2./(em.m3**2.)
-    B = -(1./(em.m1**2.)-1./(em.m2**2.))*np.cos(em.theta_w)*np.sin(2.*(psi-em.psi_w))
-    C = np.sin(psi-em.psi_w)**2./(em.m1**2.)+np.cos(psi-em.psi_w)**2./(em.m2**2.)
-    em.m_1 = np.sqrt(2./(A+C-np.sqrt(B**2.+(A-C)**2.)))
-    em.m_2 = np.sqrt(2./(A+C+np.sqrt(B**2.+(A-C)**2.)))
+    # Update real index of refraction with function for intersection ellipse (A, B, C)
+    A = (np.cos(psi-em.psi_w)**2./(em.mr[0]**2.)+np.sin(psi-em.psi_w)**2./(em.mr[1]**2.)) *\
+        np.cos(em.theta_w)**2. + np.sin(em.theta_w)**2./(em.mr[2]**2.)
+    B = -(1./(em.mr[0]**2.)-1./(em.mr[1]**2.))*np.cos(em.theta_w)*np.sin(2.*(psi-em.psi_w))
+    C = np.sin(psi-em.psi_w)**2./(em.mr[0]**2.)+np.cos(psi-em.psi_w)**2./(em.mr[1]**2.)
+    em.mr_ = np.array([np.sqrt(2./(A+C-np.sqrt(B**2.+(A-C)**2.))),
+                        np.sqrt(2./(A+C+np.sqrt(B**2.+(A-C)**2.)))])
 
-    #
-    if em.mc_perp == 0. and em.mc_par == 0.:
-        em.mc_1 = 0.
-        em.mc_2 = 0.
+    # Update imaginary
+    if np.all(em.mi==0.):
+        em.mi_ = np.array([0.,0.])
     else:
-        A = (np.cos(psi-em.psi_w)**2./(em.mc1**2.) + np.sin(psi-em.psi_w)**2./(em.mc2**2.)) *\
-            np.cos(em.theta_w)**2. + np.sin(em.theta_w)**2./(em.mc3**2.)
-        B = -(1./(em.mc1**2.)-1./(em.mc2**2.))*np.cos(em.theta_w)*np.sin(2.*(psi-em.psi_w))
-        C = np.sin(psi-em.psi_w)**2./(em.mc1**2.)+np.cos(psi-em.psi_w)**2./(em.mc2**2.)
-        em.mc_1 = np.sqrt(2./(A+C-np.sqrt(B**2.+(A-C)**2.)))
-        em.mc_2 = np.sqrt(2./(A+C+np.sqrt(B**2.+(A-C)**2.)))
+        A = (np.cos(psi-em.psi_w)**2./(em.mi[0]**2.) + np.sin(psi-em.psi_w)**2./(em.mi[1]**2.)) *\
+            np.cos(em.theta_w)**2. + np.sin(em.theta_w)**2./(em.mi[2]**2.)
+        B = -(1./(em.mi[0]**2.)-1./(em.mi[1]**2.))*np.cos(em.theta_w)*np.sin(2.*(psi-em.psi_w))
+        C = np.sin(psi-em.psi_w)**2./(em.mi[0]**2.)+np.cos(psi-em.psi_w)**2./(em.mi[1]**2.)
+        em.mi_ = np.array([np.sqrt(2./(A+C-np.sqrt(B**2.+(A-C)**2.))),
+                            np.sqrt(2./(A+C+np.sqrt(B**2.+(A-C)**2.)))])
 
-    #
+    # Rotate the azimuthal angle with the intersection ellipse
     if (psi-em.psi_w) == 0.:
+        em.psi_ = 0.
+    elif abs(B) < tol and abs(A-C) < tol:
         em.psi_ = 0.
     else:
         em.psi_ = 1/2.*np.arctan(B/(A-C))
