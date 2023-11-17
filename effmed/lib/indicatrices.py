@@ -60,12 +60,12 @@ def single_pole_indicatrix(em, theta, psi, prop_up):
     """
 
     # Get rotation angles for downward (_) and upward (__) propagation
-    em.psi_ = np.arctan(np.sin(theta)*np.sin(psi-em.psi_w)/(np.cos(em.theta_w)*np.sin(theta) * \
-                        np.cos(psi-em.psi_w)-np.sin(em.theta_w)*np.cos(theta)))
-    em.theta_ = np.arccos(np.cos(em.theta_w)*np.cos(theta)+np.sin(em.theta_w)*np.sin(theta)*np.cos(psi-em.psi_w))
-    em.psi__ = np.arctan(np.sin(theta)*np.sin(psi-em.psi_w)/(np.cos(em.theta_w)*np.sin(theta) * \
-                        np.cos(psi-em.psi_w)+np.sin(em.theta_w)*np.cos(theta)))
-    em.theta__ = np.arccos(np.cos(em.theta_w)*np.cos(theta)-np.sin(em.theta_w)*np.sin(theta)*np.cos(psi-em.psi_w))
+    em.psi_ = np.arctan(np.sin(theta)*np.sin(em.psi_w-psi)/(np.cos(em.theta_w)*np.sin(theta) * \
+                        np.cos(em.psi_w-psi)-np.sin(em.theta_w)*np.cos(theta)))
+    em.theta_ = np.arccos(np.cos(em.theta_w)*np.cos(theta)+np.sin(em.theta_w)*np.sin(theta)*np.cos(em.psi_w-psi))
+    em.psi__ = np.arctan(np.sin(theta)*np.sin(em.psi_w-psi)/(np.cos(em.theta_w)*np.sin(theta) * \
+                        np.cos(em.psi_w-psi)+np.sin(em.theta_w)*np.cos(theta)))
+    em.theta__ = np.arccos(np.cos(em.theta_w)*np.cos(theta)-np.sin(em.theta_w)*np.sin(theta)*np.cos(em.psi_w-psi))
 
     # Rotate index of refraction
     if prop_up:
@@ -98,10 +98,10 @@ def vertical_girdle_indicatrix(em, psi=0., tol = 1e-10):
     """
 
     # Update real index of refraction with function for intersection ellipse (A, B, C)
-    A = (np.cos(psi-em.psi_w)**2./(em.mr[0]**2.)+np.sin(psi-em.psi_w)**2./(em.mr[1]**2.)) *\
+    A = (np.cos(em.psi_w-psi)**2./(em.mr[0]**2.)+np.sin(em.psi_w-psi)**2./(em.mr[1]**2.)) *\
         np.cos(em.theta_w)**2. + np.sin(em.theta_w)**2./(em.mr[2]**2.)
-    B = -(1./(em.mr[0]**2.)-1./(em.mr[1]**2.))*np.cos(em.theta_w)*np.sin(2.*(psi-em.psi_w))
-    C = np.sin(psi-em.psi_w)**2./(em.mr[0]**2.)+np.cos(psi-em.psi_w)**2./(em.mr[1]**2.)
+    B = -(1./(em.mr[0]**2.)-1./(em.mr[1]**2.))*np.cos(em.theta_w)*np.sin(2.*(em.psi_w-psi))
+    C = np.sin(em.psi_w-psi)**2./(em.mr[0]**2.)+np.cos(em.psi_w-psi)**2./(em.mr[1]**2.)
     em.mr_ = np.array([np.sqrt(2./(A+C-np.sqrt(B**2.+(A-C)**2.))),
                         np.sqrt(2./(A+C+np.sqrt(B**2.+(A-C)**2.)))])
 
@@ -109,15 +109,15 @@ def vertical_girdle_indicatrix(em, psi=0., tol = 1e-10):
     if np.all(em.mi==0.):
         em.mi_ = np.array([0.,0.])
     else:
-        A = (np.cos(psi-em.psi_w)**2./(em.mi[0]**2.) + np.sin(psi-em.psi_w)**2./(em.mi[1]**2.)) *\
+        A = (np.cos(em.psi_w-psi)**2./(em.mi[0]**2.) + np.sin(em.psi_w-psi)**2./(em.mi[1]**2.)) *\
             np.cos(em.theta_w)**2. + np.sin(em.theta_w)**2./(em.mi[2]**2.)
-        B = -(1./(em.mi[0]**2.)-1./(em.mi[1]**2.))*np.cos(em.theta_w)*np.sin(2.*(psi-em.psi_w))
-        C = np.sin(psi-em.psi_w)**2./(em.mi[0]**2.)+np.cos(psi-em.psi_w)**2./(em.mi[1]**2.)
+        B = -(1./(em.mi[0]**2.)-1./(em.mi[1]**2.))*np.cos(em.theta_w)*np.sin(2.*(em.psi_w-psi))
+        C = np.sin(em.psi_w-psi)**2./(em.mi[0]**2.)+np.cos(em.psi_w-psi)**2./(em.mi[1]**2.)
         em.mi_ = np.array([np.sqrt(2./(A+C-np.sqrt(B**2.+(A-C)**2.))),
                             np.sqrt(2./(A+C+np.sqrt(B**2.+(A-C)**2.)))])
 
     # Rotate the azimuthal angle with the intersection ellipse
-    if (psi-em.psi_w) == 0.:
+    if abs(em.psi_w-psi) == 0.:
         em.psi_ = 0.
     elif abs(B) < tol and abs(A-C) < tol:
         em.psi_ = 0.
