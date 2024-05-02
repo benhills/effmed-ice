@@ -168,7 +168,7 @@ class effective_medium():
                            [0, T_2]])
 
 
-    def single_depth_solve(self,z,dzs,thetas,psis,chis,gamma=[1., 1.],
+    def single_depth_solve(self,z,dzs,thetas,psis,chis,gamma=[1., 1.],psi_gamma=None,
                            idctx='vertical-girdle', free_space=False):
         """
         Solve at a single depth for all 4 polarizations
@@ -196,7 +196,7 @@ class effective_medium():
         Prop_down = np.eye(2).astype(complex)
         Prop_up = np.eye(2).astype(complex)
 
-        # Propagate downward, updating scattering matrix through each layer
+        # Propagate downward, updating the rotated transmission matrix through each layer
         layer_n, z_prop = 0, 0
         while (z_prop+dzs[-1]) < z:
             self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
@@ -217,6 +217,8 @@ class effective_medium():
 
         # Set the reflection matrix
         # ------------------------------------------- #
+        if psi_gamma is not None:
+            self.rotation(psi_gamma)
         self.reflection(gamma[0], gamma[1])
         Reflection = matmul(matmul(self.R, self.G), np.transpose(self.R))
 
@@ -250,7 +252,8 @@ class effective_medium():
             self.S = self.D**2.*matmul(matmul(Prop_up,Reflection),Prop_down)
 
 
-    def solve(self, zs, dzs, thetas, psis, chis, idctx='vertical-girdle', gammas=None, free_space=False):
+    def solve(self, zs, dzs, thetas, psis, chis,
+              idctx='vertical-girdle', gammas=None, psi_gammas=None, free_space=False):
         """
         Solve for a full column return of all 4 polarizations
 
@@ -262,6 +265,7 @@ class effective_medium():
         psis:       Nx1-array,  azimuthal angles for each layer
         chis:       Nx3-array,  eigenvalues of the crystal orientation fabric for each layer
         gammas:     array,      reflectivity in x and y directions for each layer (or same for all layers)
+        psi_gammas: array,      azimuth of scattering interface for each layer
         idctx:      str,        qualitative fabric 'type' for indicatrix selection
         free_space: bool,       include free space transmission losses or not
         """
@@ -279,9 +283,17 @@ class effective_medium():
                 gamma = gammas
             else:
                 gamma = gammas[i]
+            # Get the azimuth of the scattering interface
+            if psi_gammas is None:
+                psi_gamma = None
+            elif not hasattr(psi_gammas,'len'):
+                psi_gamma = psi_gammas
+            else:
+                psi_gamma = psi_gammas[i]
 
             # Do the wave propagation solve at this depth
-            self.single_depth_solve(z, dzs, thetas, psis, chis, gamma, idctx=idctx, free_space=free_space)
+            self.single_depth_solve(z, dzs, thetas, psis, chis, gamma,
+                                    psi_gamma=psi_gamma, idctx=idctx, free_space=free_space)
 
             # Assign results for each polarization to their respective array
             self.shh[i] = self.S[0, 0]
