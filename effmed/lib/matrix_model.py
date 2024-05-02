@@ -203,7 +203,8 @@ class effective_medium():
             self.rotation(self.psi_)
             self.transmission(dzs[layer_n])
             # Update the electrical field downward propagation to the scattering interface
-            Prop_down = matmul(Prop_down, matmul(matmul(self.R, self.T), np.transpose(self.R)))
+            RTR = matmul(matmul(self.R, self.T), np.transpose(self.R))
+            Prop_down = matmul(RTR, Prop_down)
             # Update loop constants
             z_prop += dzs[layer_n]
             layer_n += 1
@@ -212,7 +213,8 @@ class effective_medium():
         self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
         self.rotation(self.psi_)
         self.transmission(z-z_prop)
-        Prop_down = matmul(Prop_down,matmul(matmul(self.R,self.T),np.transpose(self.R)))
+        RTR = matmul(matmul(self.R,self.T),np.transpose(self.R))
+        Prop_down = matmul(RTR, Prop_down)
 
 
         # Set the reflection matrix
@@ -228,7 +230,8 @@ class effective_medium():
         self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
         self.rotation(self.psi__)
         self.transmission(z-z_prop)
-        Prop_up = matmul(Prop_up,matmul(matmul(self.R,self.T),np.transpose(self.R)))
+        RTR = matmul(matmul(self.R, self.T), np.transpose(self.R))
+        Prop_up = matmul(RTR, Prop_up)
 
         layer_n -= 1
         while (z_prop-dzs[0]) >= 0:
@@ -236,7 +239,8 @@ class effective_medium():
             self.rotation(self.psi__)
             self.transmission(dzs[layer_n])
             # Update the electrical field upward propagation to the scattering interface
-            Prop_up = matmul(Prop_up, matmul(matmul(self.R, self.T), np.transpose(self.R)))
+            RTR = matmul(matmul(self.R, self.T), np.transpose(self.R))
+            Prop_up = matmul(RTR, Prop_up)
             # Update loop constants
             z_prop -= dzs[layer_n]
             layer_n -= 1
