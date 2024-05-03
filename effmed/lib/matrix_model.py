@@ -196,13 +196,14 @@ class effective_medium():
         Prop_down = np.eye(2).astype(complex)
         Prop_up = np.eye(2).astype(complex)
 
-        # Propagate downward, updating the rotated transmission matrix through each layer
+        ### Propagate downward, updating the rotated transmission matrix through each layer
+        # ------------------------------------------- #
         layer_n, z_prop = 0, 0
         while (z_prop+dzs[-1]) < z:
             self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
             self.rotation(self.psi_)
             self.transmission(dzs[layer_n])
-            # Update the electrical field downward propagation to the scattering interface
+            # Update the electric field downward propagation to the scattering interface
             RTR = matmul(matmul(self.R, self.T), np.transpose(self.R))
             Prop_down = matmul(RTR, Prop_down)
             # Update loop constants
@@ -217,10 +218,12 @@ class effective_medium():
         Prop_down = matmul(RTR, Prop_down)
 
 
-        # Set the reflection matrix
+        ### Set the reflection matrix
         # ------------------------------------------- #
         if psi_gamma is not None:
             self.rotation(psi_gamma)
+        else:
+            self.rotation(0.)
         self.reflection(gamma[0], gamma[1])
         Reflection = matmul(matmul(self.R, self.G), np.transpose(self.R))
 
@@ -238,7 +241,7 @@ class effective_medium():
             self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
             self.rotation(self.psi__)
             self.transmission(dzs[layer_n])
-            # Update the electrical field upward propagation to the scattering interface
+            # Update the electric field upward propagation to the scattering interface
             RTR = matmul(matmul(self.R, self.T), np.transpose(self.R))
             Prop_up = matmul(RTR, Prop_up)
             # Update loop constants
@@ -246,14 +249,14 @@ class effective_medium():
             layer_n -= 1
 
 
-        # Return scattering matrix
+        # Return the full Jones matrix
         # ------------------------------------------- #
         if free_space is False:
-            self.S = matmul(matmul(Prop_up,Reflection),Prop_down)
+            self.S = matmul(Prop_up, matmul(Reflection,Prop_down))
         else:
             # Add the free space propagation term if desired
             self.freespace(z)
-            self.S = self.D**2.*matmul(matmul(Prop_up,Reflection),Prop_down)
+            self.S = self.D**2.*matmul(Prop_up, matmul(Reflection,Prop_down))
 
 
     def solve(self, zs, dzs, thetas, psis, chis,
@@ -290,7 +293,7 @@ class effective_medium():
             # Get the azimuth of the scattering interface
             if psi_gammas is None:
                 psi_gamma = None
-            elif not hasattr(psi_gammas,'len'):
+            elif not hasattr(psi_gammas,'__len__'):
                 psi_gamma = psi_gammas
             else:
                 psi_gamma = psi_gammas[i]
