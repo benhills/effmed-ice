@@ -102,8 +102,8 @@ def vertical_girdle_indicatrix(em, psi=0., tol = 1e-10):
         np.cos(em.theta_w)**2. + np.sin(em.theta_w)**2./(em.mr[2]**2.)
     B = -(1./(em.mr[0]**2.)-1./(em.mr[1]**2.))*np.cos(em.theta_w)*np.sin(2.*(em.psi_w-psi))
     C = np.sin(em.psi_w-psi)**2./(em.mr[0]**2.)+np.cos(em.psi_w-psi)**2./(em.mr[1]**2.)
-    em.mr_ = np.array([np.sqrt(2./(A+C-np.sqrt(B**2.+(A-C)**2.))),
-                        np.sqrt(2./(A+C+np.sqrt(B**2.+(A-C)**2.)))])
+    em.mr_ = np.array([np.sqrt(2./(A+C+np.sign(A-C)*np.sqrt(B**2.+(A-C)**2.))),
+                        np.sqrt(2./(A+C-np.sign(A-C)*np.sqrt(B**2.+(A-C)**2.)))])
 
     # Update imaginary
     if np.all(em.mi==0.):
@@ -113,8 +113,8 @@ def vertical_girdle_indicatrix(em, psi=0., tol = 1e-10):
             np.cos(em.theta_w)**2. + np.sin(em.theta_w)**2./(em.mi[2]**2.)
         B = -(1./(em.mi[0]**2.)-1./(em.mi[1]**2.))*np.cos(em.theta_w)*np.sin(2.*(em.psi_w-psi))
         C = np.sin(em.psi_w-psi)**2./(em.mi[0]**2.)+np.cos(em.psi_w-psi)**2./(em.mi[1]**2.)
-        em.mi_ = np.array([np.sqrt(2./(A+C-np.sqrt(B**2.+(A-C)**2.))),
-                            np.sqrt(2./(A+C+np.sqrt(B**2.+(A-C)**2.)))])
+        em.mi_ = np.array([np.sqrt(2./(A+C+np.sign(A-C)*np.sqrt(B**2.+(A-C)**2.))),
+                            np.sqrt(2./(A+C-np.sign(A-C)*np.sqrt(B**2.+(A-C)**2.)))])
 
     # Rotate the azimuthal angle with the intersection ellipse
     if abs(em.psi_w-psi) == 0.:
