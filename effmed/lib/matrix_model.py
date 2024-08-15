@@ -63,7 +63,7 @@ class effective_medium():
             self.theta_w = theta_w
 
 
-    def ice_properties(self, idctx='vertical-girdle', T=None, epsr=3.12, epsi=0.,
+    def ice_properties(self, idctx='biaxial', T=None, epsr=3.12, epsi=0.,
                        theta=0., psi= 0., chi=[.5, 0., .5], prop_up=False):
         """
         Set the ice properties including permittivity
@@ -71,7 +71,7 @@ class effective_medium():
 
         Parameters
         ----------
-        idctx:      str,    qualitative fabric 'type' for indicatrix selection
+        idctx:      str,    qualitative anisotropy 'type' for indicatrix selection
         T:          float,  ice temperature
         epsr:       float,  real relative permittivity
         epsc:       float,  imaginary relative permittivity
@@ -218,7 +218,7 @@ class effective_medium():
         Prop_down = matmul(RTR, Prop_down)
 
 
-        ### Set the reflection matrix
+        ### Set the scattering (reflection) matrix
         # ------------------------------------------- #
         if psi_gamma is not None:
             self.rotation(psi_gamma)
