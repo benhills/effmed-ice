@@ -33,12 +33,12 @@ def get_prop_const(em, indicatrix, theta, psi, prop_up):
                     (1-em.chi[2])*em.mi_perp + em.chi[2]*em.mi_par])
 
     # Rotate refractive index based on wave propagation path
-    if indicatrix == 'single-pole':
-        single_pole_indicatrix(em, theta, psi, prop_up)
-    elif indicatrix == 'vertical-girdle':
-        vertical_girdle_indicatrix(em, psi)
+    if indicatrix == 'uniaxial':
+        uniaxial_indicatrix(em, theta, psi, prop_up)
+    elif indicatrix == 'biaxial':
+        biaxial_indicatrix(em, psi)
     else:
-        raise TypeError('Indicatrix not recognized; choose from single-pole or vertical-girdle.')
+        raise TypeError('Indicatrix not recognized; choose from uniaxial or biaxial.')
 
     # Get conductivity and propagation constant from refractive index (Fujita et al., 2006; eq 7)
     em.sigma = em.omega*em.eps0*em.mi_**2. # conductivity
@@ -46,7 +46,7 @@ def get_prop_const(em, indicatrix, theta, psi, prop_up):
                      1j*em.mu0*em.sigma*em.omega) # propagation constant
 
 
-def single_pole_indicatrix(em, theta, psi, prop_up):
+def uniaxial_indicatrix(em, theta, psi, prop_up):
     """
     Get the indicatrix for a Single Pole fabric
     Matsuoka 2009 Appendix IIA
@@ -85,7 +85,7 @@ def single_pole_indicatrix(em, theta, psi, prop_up):
                                em.mi[0]])
 
 
-def vertical_girdle_indicatrix(em, psi=0., tol = 1e-10):
+def biaxial_indicatrix(em, psi=0., tol = 1e-10):
     """
     Get the indicatrix for a Vertical Girdle fabric
     Matsuoka 2009 Appendix IIB
@@ -124,3 +124,17 @@ def vertical_girdle_indicatrix(em, psi=0., tol = 1e-10):
     else:
         em.psi_ = 1/2.*np.arctan(B/(A-C))
     em.psi__ = em.psi_
+
+
+def rotate_biaxial(rotation):
+    """
+    Rotate the biaxial indicatrix
+    For a generalized girdle fabric (doesn't need to be vertical)
+    Matsuoka 2009 Appendix IIC
+
+    Parameters
+    ----------
+    rotation:   3x1 array,
+    """
+
+
