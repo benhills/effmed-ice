@@ -7,7 +7,6 @@ Created on Mon Feb 1 2021
 """
 
 import numpy as np
-from np import matmul
 
 """
 Indicatrices for single pole and vertical girdle fabrics based on Matsuoka et al. (2009)
@@ -147,4 +146,4 @@ def rotate_biaxial(rotation):
                    [np.sin(psi), np.cos(psi), 0.],
                    [0., 0., 1.]])
 
-    Mtilt = matmul(matmul(M1,M2),M3)
+    Mtilt = np.matmul(np.matmul(M1,M2),M3)
