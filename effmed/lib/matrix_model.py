@@ -84,7 +84,7 @@ class effective_medium():
         # Save input variables to the model class
         self.mr_perp = np.sqrt(epsr)    # real relative permittivity of ice for perpendicular polarization
         self.mi_perp = np.sqrt(epsi)    # imaginary relative permittivity of ice for perpendicular polarization
-        self.chi = chi                  # eigenvalues of the c-axes distribution
+        self.chi = np.array(chi)        # eigenvalues of the c-axes distribution
 
         if T is not None:
             # Temperature based anisotropy constant from
@@ -169,7 +169,7 @@ class effective_medium():
 
 
     def single_depth_solve(self,z,dzs,thetas,psis,chis,gamma=[1., 1.],psi_gamma=None,
-                           idctx='vertical-girdle', free_space=False):
+                           idctx='biaxial', free_space=False):
         """
         Solve at a single depth for all 4 polarizations
 
@@ -260,7 +260,7 @@ class effective_medium():
 
 
     def solve(self, zs, dzs, thetas, psis, chis,
-              idctx='vertical-girdle', gammas=None, psi_gammas=None, free_space=False):
+              idctx='biaxial', gammas=None, psi_gammas=None, free_space=False):
         """
         Solve for a full column return of all 4 polarizations
 

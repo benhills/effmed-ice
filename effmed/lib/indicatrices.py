@@ -7,6 +7,7 @@ Created on Mon Feb 1 2021
 """
 
 import numpy as np
+from np import matmul
 
 """
 Indicatrices for single pole and vertical girdle fabrics based on Matsuoka et al. (2009)
@@ -14,6 +15,8 @@ Indicatrices for single pole and vertical girdle fabrics based on Matsuoka et al
 
 def get_prop_const(em, indicatrix, theta, psi, prop_up):
     """
+    Get Propagation Constants
+    Use the COF indicatrix to get the conductivity, sigma, and propagation constant, k.
 
     Parameters
     ----------
@@ -24,15 +27,11 @@ def get_prop_const(em, indicatrix, theta, psi, prop_up):
     prop_up:    bool,   propagate up? changes the indicatrix output
     """
 
-    # Get real and imaginary refractive index along crystal orientation fabric
-    em.mr = np.array([(1-em.chi[0])*em.mr_perp + em.chi[0]*em.mr_par,
-                    (1-em.chi[1])*em.mr_perp + em.chi[1]*em.mr_par,
-                    (1-em.chi[2])*em.mr_perp + em.chi[2]*em.mr_par])
-    em.mi = np.array([(1-em.chi[0])*em.mi_perp + em.chi[0]*em.mi_par,
-                    (1-em.chi[1])*em.mi_perp + em.chi[1]*em.mi_par,
-                    (1-em.chi[2])*em.mi_perp + em.chi[2]*em.mi_par])
+    # Get real and imaginary refractive index along crystal orientation fabric (disregard propagation direction for now)
+    em.mr = (1.-em.chi)*em.mr_perp + em.chi*em.mr_par
+    em.mi = (1.-em.chi)*em.mi_perp + em.chi*em.mi_par
 
-    # Rotate refractive index based on wave propagation path
+    # Rotate refractive index based on wave propagation direction
     if indicatrix == 'uniaxial':
         uniaxial_indicatrix(em, theta, psi, prop_up)
     elif indicatrix == 'biaxial':
@@ -137,4 +136,15 @@ def rotate_biaxial(rotation):
     rotation:   3x1 array,
     """
 
+    phi,theta,psi = rotation
+    M1 = np.array([[np.cos(phi), -np.sin(phi), 0.],
+                   [np.sin(phi), np.cos(phi), 0.],
+                   [0., 0., 1.]])
+    M2 = np.array([[1, 0., 0.],
+                   [0., np.cos(theta), -np.sin(theta)],
+                   [0., np.sin(theta), np.cos(theta)]])
+    M3 = np.array([[np.cos(psi), -np.sin(psi), 0.],
+                   [np.sin(psi), np.cos(psi), 0.],
+                   [0., 0., 1.]])
 
+    Mtilt = matmul(matmul(M1,M2),M3)
