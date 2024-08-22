@@ -21,14 +21,14 @@ def get_prop_const(em, indicatrix, theta, psi, prop_up):
     ----------
     em:     class,  effective medium model class
     indicatrix:      str,    qualitative fabric 'type' for indicatrix selection
-    theta:      float,  polar angle of vertical eigenvector (chi[2])
+    theta:      float,  polar angle of vertical eigenvector (lam[2])
     psi:        float,  azimuthal angle of vertical eigenvalue or girdle
     prop_up:    bool,   propagate up? changes the indicatrix output
     """
 
     # Get real and imaginary refractive index along crystal orientation fabric (disregard propagation direction for now)
-    em.mr = (1.-em.chi)*em.mr_perp + em.chi*em.mr_par
-    em.mi = (1.-em.chi)*em.mi_perp + em.chi*em.mi_par
+    em.mr = (1.-em.lam)*em.mr_perp + em.lam*em.mr_par
+    em.mi = (1.-em.lam)*em.mi_perp + em.lam*em.mi_par
 
     # Rotate refractive index based on wave propagation direction
     if indicatrix == 'uniaxial':
@@ -52,7 +52,7 @@ def uniaxial_indicatrix(em, theta, psi, prop_up):
     Parameters
     ----------
     em:         class,  effective medium model class
-    theta:      float,  polar angle of vertical eigenvector (chi[2])
+    theta:      float,  polar angle of vertical eigenvector (lam[2])
     psi:        float,  azimuthal angle of vertical eigenvalue or girdle
     prop_up:    bool,   propagate up? changes the indicatrix output
     """

@@ -64,7 +64,7 @@ class effective_medium():
 
 
     def ice_properties(self, idctx='biaxial', T=None, epsr=3.12, epsi=0.,
-                       theta=0., psi= 0., chi=[.5, 0., .5], prop_up=False):
+                       theta=0., psi= 0., lam=[.5, 0., .5], prop_up=False):
         """
         Set the ice properties including permittivity
         and crystal orientation fabric
@@ -75,16 +75,16 @@ class effective_medium():
         T:          float,  ice temperature
         epsr:       float,  real relative permittivity
         epsc:       float,  imaginary relative permittivity
-        theta:      float,  polar angle of vertical eigenvector (chi[2])
+        theta:      float,  polar angle of vertical eigenvector (lam[2])
         psi:        float,  azimuthal angle of vertical eigenvalue or girdle
-        chi:        array,  c-axes distribution (eigenvalues)
+        lam:        array,  c-axes distribution (eigenvalues)
         prop_up:    bool,   propagate up? changes the indicatrix output
         """
 
         # Save input variables to the model class
         self.mr_perp = np.sqrt(epsr)    # real relative permittivity of ice for perpendicular polarization
         self.mi_perp = np.sqrt(epsi)    # imaginary relative permittivity of ice for perpendicular polarization
-        self.chi = np.array(chi)        # eigenvalues of the c-axes distribution
+        self.lam = np.array(lam)        # eigenvalues of the c-axes distribution
 
         if T is not None:
             # Temperature based anisotropy constant from
@@ -168,7 +168,7 @@ class effective_medium():
                            [0, T_2]])
 
 
-    def single_depth_solve(self,z,dzs,thetas,psis,chis,gamma=[1., 1.],psi_gamma=None,
+    def single_depth_solve(self,z,dzs,thetas,psis,lams,gamma=[1., 1.],psi_gamma=None,
                            idctx='biaxial', free_space=False):
         """
         Solve at a single depth for all 4 polarizations
@@ -179,18 +179,18 @@ class effective_medium():
         dzs:        Nx1-array,  layer thicknesses
         thetas:     Nx1-array,  polar angles for each layer
         psis:       Nx1-array,  azimuthal angles for each layer
-        chis:       Nx3-array,  eigenvalues of the crystal orientation fabric for each layer
+        lams:       Nx3-array,  eigenvalues of the crystal orientation fabric for each layer
         gamma:      array,      reflectivity in x and y directions
         idctx:      str,        qualitative fabric 'type' for indicatrix selection
         free_space: bool,       include free space transmission losses or not
         """
 
         # If the ice properties are constant fill in placeholder arrays
-        if type(thetas) is float and type(psis) is float and np.shape(chis) == (3,):
+        if type(thetas) is float and type(psis) is float and np.shape(lams) == (3,):
             dzs = np.array([dzs, dzs])
             psis = np.array([psis, psis])
             thetas = np.array([thetas, thetas])
-            chis = np.array([chis, chis])
+            lams = np.array([lams, lams])
 
         # Initiate propagation arrays as identity
         Prop_down = np.eye(2).astype(complex)
@@ -200,7 +200,7 @@ class effective_medium():
         # ------------------------------------------- #
         layer_n, z_prop = 0, 0
         while (z_prop+dzs[-1]) < z:
-            self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
+            self.ice_properties(idctx=idctx, lam=lams[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
             self.rotation(self.psi_)
             self.transmission(dzs[layer_n])
             # Update the electric field downward propagation to the scattering interface
@@ -211,7 +211,7 @@ class effective_medium():
             layer_n += 1
 
         # Some depth into the final layer
-        self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
+        self.ice_properties(idctx=idctx, lam=lams[layer_n], psi=psis[layer_n], theta=thetas[layer_n])
         self.rotation(self.psi_)
         self.transmission(z-z_prop)
         RTR = matmul(matmul(self.R,self.T),np.transpose(self.R))
@@ -230,7 +230,7 @@ class effective_medium():
 
         ### Propagate upward, updating scattering matrix through each layer
         # ------------------------------------------- #
-        self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
+        self.ice_properties(idctx=idctx, lam=lams[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
         self.rotation(self.psi__)
         self.transmission(z-z_prop)
         RTR = matmul(matmul(self.R, self.T), np.transpose(self.R))
@@ -238,7 +238,7 @@ class effective_medium():
 
         layer_n -= 1
         while (z_prop-dzs[0]) >= 0:
-            self.ice_properties(idctx=idctx, chi=chis[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
+            self.ice_properties(idctx=idctx, lam=lams[layer_n], psi=psis[layer_n], theta=thetas[layer_n], prop_up=True)
             self.rotation(self.psi__)
             self.transmission(dzs[layer_n])
             # Update the electric field upward propagation to the scattering interface
@@ -259,7 +259,7 @@ class effective_medium():
             self.S = self.D**2.*matmul(Prop_up, matmul(Reflection,Prop_down))
 
 
-    def solve(self, zs, dzs, thetas, psis, chis,
+    def solve(self, zs, dzs, thetas, psis, lams,
               idctx='biaxial', gammas=None, psi_gammas=None, free_space=False):
         """
         Solve for a full column return of all 4 polarizations
@@ -270,7 +270,7 @@ class effective_medium():
         dzs:        Nx1-array,  layer thicknesses
         thetas:     Nx1-array,  polar angles for each layer
         psis:       Nx1-array,  azimuthal angles for each layer
-        chis:       Nx3-array,  eigenvalues of the crystal orientation fabric for each layer
+        lams:       Nx3-array,  eigenvalues of the crystal orientation fabric for each layer
         gammas:     array,      reflectivity in x and y directions for each layer (or same for all layers)
         psi_gammas: array,      azimuth of scattering interface for each layer
         idctx:      str,        qualitative fabric 'type' for indicatrix selection
@@ -299,7 +299,7 @@ class effective_medium():
                 psi_gamma = psi_gammas[i]
 
             # Do the wave propagation solve at this depth
-            self.single_depth_solve(z, dzs, thetas, psis, chis, gamma,
+            self.single_depth_solve(z, dzs, thetas, psis, lams, gamma,
                                     psi_gamma=psi_gamma, idctx=idctx, free_space=free_space)
 
             # Assign results for each polarization to their respective array
