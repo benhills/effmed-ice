@@ -82,8 +82,8 @@ class effective_medium():
         """
 
         # Save input variables to the model class
-        self.mr_perp = np.sqrt(epsr)    # real relative permittivity of ice for perpendicular polarization
-        self.mi_perp = np.sqrt(epsi)    # imaginary relative permittivity of ice for perpendicular polarization
+        self.epsr = epsr                # real relative permittivity of ice for perpendicular polarization
+        self.epsi = epsi                # imaginary relative permittivity of ice for perpendicular polarization
         self.lam = np.array(lam)        # eigenvalues of the c-axes distribution
 
         if T is not None:
@@ -96,9 +96,13 @@ class effective_medium():
             self.depsr = 0.034
             self.depsi = 0j #TODO: get the imaginary component
 
+        # set the perpendicular refractive index
+        self.mr_perp = np.sqrt(epsr)
+        self.mi_perp = np.sqrt(epsi)
+
         # set the parallel permittivity
-        self.mr_par = np.sqrt(self.mr_perp**2. + self.depsr)
-        self.mi_par = np.sqrt(self.mi_perp**2. + self.depsi)
+        self.mr_par = np.sqrt(self.epsr + self.depsr)
+        self.mi_par = np.sqrt(self.epsi + self.depsi)
 
         # use external functions to get the indicatrix
         get_prop_const(self, idctx, theta, psi, prop_up)
